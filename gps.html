@@ -65,6 +65,14 @@
         window.addEventListener('orientationchange', recalculateHeight);
         recalculateHeight();
 
+        function getQueryParam(name) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(name);
+        }
+
+        const sid = getQueryParam('sid');
+        const callbackUrl = getQueryParam('callback');
+
         function requestGps() {
             document.getElementById('loader').classList.remove('hidden');
             document.getElementById('status').classList.add('hidden');
@@ -77,17 +85,33 @@
                         var lng = position.coords.longitude;
                         var payload = { lat: lat, lng: lng, success: true };
                         
-                        // ส่งข้อความความปลอดภัยด้วย PostMessage ไปยังหน้าหลัก
+                        // ช่องทางที่ 1: การส่งพิกัดแบบทันทีด้วย PostMessage 
                         if (window.opener) {
                             window.opener.postMessage({ type: 'GPS_CAPTURE', data: payload }, '*');
                         }
                         
-                        document.getElementById('loader').classList.add('hidden');
-                        document.getElementById('status').classList.remove('hidden');
-                        
-                        setTimeout(function() {
-                            window.close();
-                        }, 1200);
+                        // ช่องทางที่ 2: ระบบ Server Cache Relay (ใช้เมื่อ PostMessage ถูกปิดกั้นด้วย Cross-Origin)
+                        if (sid && callbackUrl) {
+                            var finalUrl = callbackUrl + '?action=callback_gps&sid=' + encodeURIComponent(sid) + '&lat=' + lat + '&lng=' + lng;
+                            
+                            // ใช้โหมด no-cors เพื่อเลี่ยงปัญหานโยบาย CORS บล็อกเบราว์เซอร์ฝั่งส่งข้อมูล
+                            fetch(finalUrl, { method: 'GET', mode: 'no-cors' })
+                                .then(function() {
+                                    document.getElementById('loader').classList.add('hidden');
+                                    document.getElementById('status').classList.remove('hidden');
+                                    setTimeout(function() { window.close(); }, 1200);
+                                })
+                                .catch(function() {
+                                    // หากเกิดข้อผิดพลาดในการตรวจสอบเน็ต ให้ปิดตามเวลาเพื่อรักษาความไหลลื่นของแอปหลัก
+                                    document.getElementById('loader').classList.add('hidden');
+                                    document.getElementById('status').classList.remove('hidden');
+                                    setTimeout(function() { window.close(); }, 1500);
+                                });
+                        } else {
+                            document.getElementById('loader').classList.add('hidden');
+                            document.getElementById('status').classList.remove('hidden');
+                            setTimeout(function() { window.close(); }, 1500);
+                        }
                     },
                     function(error) {
                         document.getElementById('loader').classList.add('hidden');
