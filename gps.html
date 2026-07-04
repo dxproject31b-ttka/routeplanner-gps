@@ -77,7 +77,7 @@
                         var lng = position.coords.longitude;
                         var payload = { lat: lat, lng: lng, success: true };
                         
-                        // ยิงพิกัด Geolocation ย้อนกลับผ่าน Direct postMessage API 
+                        // ส่งข้อความความปลอดภัยด้วย PostMessage ไปยังหน้าหลัก
                         if (window.opener) {
                             window.opener.postMessage({ type: 'GPS_CAPTURE', data: payload }, '*');
                         }
